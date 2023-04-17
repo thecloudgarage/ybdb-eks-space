@@ -1,0 +1,21 @@
+commonLabels:
+  app.kubernetes.io/genereted-by: JHipster
+
+resources:
+  # Individual apps
+  - invoice-k8s/invoice-deployment.yml
+  - invoice-k8s/invoice-service.yml
+  - notification-k8s/notification-deployment.yml
+  - notification-k8s/notification-service.yml
+  - product-k8s/product-deployment.yml
+  - product-k8s/product-service.yml
+  - store-k8s/store-deployment.yml
+  - store-k8s/store-service.yml
+  # distributed sql
+  - dsql-k8s/yql.yml
+  - dsql-k8s/yql-job.yml
+  # service discovery eureka/consul
+  - registry-k8s/jhipster-registry.yml
+  - registry-k8s/application-configmap.yml
+
+patchesJson6902:

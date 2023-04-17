@@ -1,0 +1,127 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ybdb-dsql-cm
+  namespace: default
+data:
+  ysql-init-db.sql: |
+    CREATE DATABASE invoice\;
+    CREATE ROLE invoice WITH LOGIN PASSWORD \'${invoice}\'\;
+    GRANT ALL PRIVILEGES ON DATABASE invoice TO invoice\;
+    CREATE DATABASE notification\;
+    CREATE ROLE notification WITH LOGIN PASSWORD \'${notification}\'\;
+    GRANT ALL PRIVILEGES ON DATABASE notification TO notification\;
+    CREATE DATABASE product\;
+    CREATE ROLE product WITH LOGIN PASSWORD \'${product}\'\;
+    GRANT ALL PRIVILEGES ON DATABASE product TO product\;
+    CREATE DATABASE store\;
+    CREATE ROLE store WITH LOGIN PASSWORD \'${store}\'\;
+    GRANT ALL PRIVILEGES ON DATABASE store TO store\;
+  ycql-init-db.sql: |
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ybdb-dsql-job
+  namespace: default
+  labels:
+    app: ybdb-dsql-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: ybdb-dsql-init
+          image: yugabytedb/yugabyte:2.14.7.0-b51
+          env:
+            - name: YSQL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ybdb-dsql-vault
+                  key: ysql-secret
+            - name: YCQL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ybdb-dsql-vault
+                  key: ycql-secret
+            - name: invoice
+              valueFrom:
+                secretKeyRef:
+                  name: invoice-vault
+                  key: yql-secret
+            - name: notification
+              valueFrom:
+                secretKeyRef:
+                  name: notification-vault
+                  key: yql-secret
+            - name: product
+              valueFrom:
+                secretKeyRef:
+                  name: product-vault
+                  key: yql-secret
+            - name: store
+              valueFrom:
+                secretKeyRef:
+                  name: store-vault
+                  key: yql-secret
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+              readOnly: true
+          command:
+            - "/sbin/tini"
+            - "--"
+          args:
+            - "/bin/bash"
+            - "-c"
+            - |
+              while true
+              do
+                rt=$(echo 'exit' | curl -s telnet://ybdb-dsql-yql:5433)
+                if [ $? -eq 0 ]; then
+                  echo "DB is UP"
+                  break
+                fi
+                echo "DB is not yet reachable; sleep for a few secs before retry"
+                sleep 5
+              done
+              # update the default creds
+              echo "Updating the default YSQL password"
+              /home/yugabyte/tserver/bin/ysqlsh -h ybdb-dsql-yql -U yugabyte password='yugabyte' -c "ALTER USER yugabyte PASSWORD '${YSQL_SECRET}';" \
+                && echo "YSQL password updated successfully" || { echo "YSQL password update failed"; exit 1; }
+              echo "Updating the default YCQL password"
+              /home/yugabyte/tserver/bin/ycqlsh ybdb-dsql-yql -u cassandra -p 'cassandra' -e "ALTER ROLE cassandra WITH PASSWORD = '${YCQL_SECRET}';"
+
+              if [ -f "/config/ysql-init-db.sql" ]; then
+                echo "Initializing YSQL DB Objects"
+                rm -f /tmp/ysql-init-db.sql; while read -r line
+                do
+                  eval echo "$line" >> /tmp/ysql-init-db.sql
+                done < "/config/ysql-init-db.sql"
+                if [ -f "/tmp/ysql-init-db.sql" ]; then
+                  /home/yugabyte/tserver/bin/ysqlsh --set ON_ERROR_STOP=on -h ybdb-dsql-yql -U yugabyte password=\'${YSQL_SECRET}\' -f /tmp/ysql-init-db.sql
+                  if [ $? -ne 0 ]; then
+                    echo "YSQL DB Objects creation failed"
+                    exit 1
+                  else
+                    echo "YSQL DB Objects created successfully"
+                  fi
+                fi
+              fi
+
+              if [ -f "/config/ycql-init-db.sql" ]; then
+                echo "Initializing YCQL DB Objects"
+                rm -f /tmp/ycql-init-db.sql; while read -r line
+                do
+                  eval echo "$line" >> /tmp/ycql-init-db.sql
+                done < "/config/ycql-init-db.sql"
+                if [ -f "/tmp/ycql-init-db.sql" ]; then
+                  /home/yugabyte/tserver/bin/ycqlsh ybdb-dsql-yql -u cassandra -p ${YCQL_SECRET} -f /tmp/ycql-init-db.sql
+                fi
+              fi
+      restartPolicy: OnFailure
+      volumes:
+        - name: config
+          configMap:
+            name: ybdb-dsql-cm
+  backoffLimit: 6

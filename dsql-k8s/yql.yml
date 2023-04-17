@@ -1,0 +1,550 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ybdb-dsql-master
+  namespace: default
+  labels:
+    app: ybdb-dsql-master
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ybdb-dsql-master
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ybdb-dsql-tserver
+  namespace: default
+  labels:
+    app: ybdb-dsql-tserver
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ybdb-dsql-tserver
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ybdb-dsql-masters
+  namespace: default
+  labels:
+    app: ybdb-dsql-master
+    service-type: "headless"
+spec:
+  clusterIP: None
+  ports:
+    - name: "tcp-rpc-port"
+      port: 7100
+  selector:
+    app: ybdb-dsql-master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ybdb-dsql-master-ui
+  namespace: default
+  labels:
+    app: ybdb-dsql-master
+spec:
+  ports:
+    - name: "http-ui"
+      port: 7000
+  selector:
+    app: ybdb-dsql-master
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ybdb-dsql-tservers
+  namespace: default
+  labels:
+    app: ybdb-dsql-tserver
+    service-type: "headless"
+spec:
+  clusterIP: None
+  ports:
+    - name: "tcp-rpc-port"
+      port: 9100
+  selector:
+    app: ybdb-dsql-tserver
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ybdb-dsql-yql
+  namespace: default
+  labels:
+    app: ybdb-dsql-tserver
+spec:
+  ports:
+    - name: "tcp-ysql-port"
+      port: 5433
+    - name: "tcp-ycql-port"
+      port: 9042
+    - name: "http-ysql-met"
+      port: 13000
+    - name: "http-ycql-met"
+      port: 12000
+  selector:
+    app: ybdb-dsql-tserver
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ybdb-dsql-tserver-ui
+  namespace: default
+  labels:
+    app: ybdb-dsql-tserver
+spec:
+  ports:
+    - name: "http-ui"
+      port: 9000
+  selector:
+    app: ybdb-dsql-tserver
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ybdb-dsql-vault
+  namespace: default
+  labels:
+    app: ybdb-dsql-vault
+type: Opaque
+data:
+  ysql-secret: NWQyM2EwNWEyOTIyYTY3OTE1NDdmNTNjZTgxYWNhZWQwOGQ4M2UzMjVhOGU2NjllYWZkYmYwYTE3Y2ZhNjg4NA==
+  ycql-secret: N2NjYjM1OWNmNWJmN2Q3MzczOTM4NDZhNDk0M2NlOTY2YmI3NDlkZTI5N2E1NTVmMmFkMGRmODNlNmY4YTk3Yg==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: invoice-vault
+  namespace: default
+  labels:
+    app: invoice-vault
+type: Opaque
+data:
+  yql-secret: NDRmYzljMWZkOWNhM2Y1MzMzMzY5ZDBlYjVlODFlMjYxMTZmMGRkY2MwMmY1ZTI1YzM5ZGM0NjRiNWExYzcxMw==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-vault
+  namespace: default
+  labels:
+    app: notification-vault
+type: Opaque
+data:
+  yql-secret: NTFmZGIzYTdkMTNmOTA1Yzc3NGM3ZWRlMWI4ZWQ0ZDBmNjM4N2EzZWFjMjM4MDk5Y2VmYzljNjg2OTU5NjZkZA==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: product-vault
+  namespace: default
+  labels:
+    app: product-vault
+type: Opaque
+data:
+  yql-secret: ZWRjMmRhY2Q0ZDgwODBlNGY4MzM2MjhmZTBmN2U4ZTMzNDk0NTU3ZjVmMTZmMGNmNDhhYzM5N2U5Yzc4ODk5OA==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: store-vault
+  namespace: default
+  labels:
+    app: store-vault
+type: Opaque
+data:
+  yql-secret: NjY3NGM4MWY3MzE1OWVjNmFiOGJhMjU3YmIxMTc3MWUyNzcyZWI1NzI5Y2JlZTE2MTZkMzM2NGU1N2EyMmI0Mw==
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ybdb-dsql-master
+  namespace: default
+  labels:
+    app: ybdb-dsql-master
+spec:
+  serviceName: ybdb-dsql-masters
+  podManagementPolicy: Parallel
+  replicas: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: ybdb-dsql-master
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        storageClassName:
+        resources:
+          requests:
+            storage: 50Gi
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  selector:
+    matchLabels:
+      app: ybdb-dsql-master
+  template:
+    metadata:
+      labels:
+        app: ybdb-dsql-master
+    spec:
+      terminationGracePeriodSeconds: 300
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ybdb-dsql-master
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: ybdb-dsql-master
+          image: yugabytedb/yugabyte:2.14.7.0-b51
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "bash"
+                  - "-c"
+                  - >
+                    mkdir -p /mnt/disk0/cores;
+                    mkdir -p /mnt/disk0/yb-data/scripts;
+                    if [ ! -f /mnt/disk0/yb-data/scripts/log_cleanup.sh ]; then
+                      if [ -f /home/yugabyte/bin/log_cleanup.sh ]; then
+                        cp /home/yugabyte/bin/log_cleanup.sh /mnt/disk0/yb-data/scripts;
+                      fi;
+                    fi
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - touch "/mnt/disk0/disk.check"
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: YBDEVOPS_CORECOPY_DIR
+              value: "/mnt/disk0/cores"
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+          workingDir: "/mnt/disk0/cores"
+          command:
+            - "/sbin/tini"
+            - "--"
+          args:
+            - "/bin/bash"
+            - "-c"
+            - |
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                /home/yugabyte/tools/k8s_preflight.py all
+              fi && \
+              touch "/mnt/disk0/disk.check" && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="$(HOSTNAME).ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local" \
+                  --port="7100"
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="$(HOSTNAME).ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100" \
+                  --port="7100"
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="0.0.0.0" \
+                  --port="7000"
+              fi && \
+              if [[ -f /home/yugabyte/tools/k8s_parent.py ]]; then
+                k8s_parent="/home/yugabyte/tools/k8s_parent.py"
+              else
+                k8s_parent=""
+              fi && \
+              exec ${k8s_parent} /home/yugabyte/bin/yb-master \
+                --fs_data_dirs=/mnt/disk0 \
+                --master_addresses=ybdb-dsql-master-0.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100,ybdb-dsql-master-1.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100,ybdb-dsql-master-2.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100 \
+                --replication_factor=3 \
+                --enable_ysql=true \
+                --metric_node_name=$(HOSTNAME) \
+                --memory_limit_hard_bytes=912261120 \
+                --stderrthreshold=0 \
+                --num_cpus=1 \
+                --undefok=num_cpus,enable_ysql \
+                --rpc_bind_addresses=$(HOSTNAME).ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local \
+                --server_broadcast_addresses=$(HOSTNAME).ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100 \
+                --webserver_interface=0.0.0.0
+          ports:
+            - containerPort: 7000
+              name: "http-ui"
+            - containerPort: 7100
+              name: "tcp-rpc-port"
+          volumeMounts:
+            - name: ybdb-dsql-master
+              mountPath: /mnt/disk0
+        - name: ybdb-dsql-yb-cleanup
+          image: yugabytedb/yugabyte:2.14.7.0-b51
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: USER
+              value: "yugabyte"
+          command:
+            - "/sbin/tini"
+            - "--"
+          args:
+            - "/bin/bash"
+            - "-c"
+            - >
+              while true; do
+                sleep 3600;
+                /home/yugabyte/scripts/log_cleanup.sh;
+              done
+          volumeMounts:
+            - name: ybdb-dsql-master
+              mountPath: /home/yugabyte/
+              subPath: yb-data
+            - name: ybdb-dsql-master
+              mountPath: /var/yugabyte/cores
+              subPath: cores
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ybdb-dsql-tserver
+  namespace: default
+  labels:
+    app: ybdb-dsql-tserver
+spec:
+  serviceName: ybdb-dsql-tservers
+  podManagementPolicy: Parallel
+  replicas: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: ybdb-dsql-tserver
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        storageClassName:
+        resources:
+          requests:
+            storage: 50Gi
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  selector:
+    matchLabels:
+      app: ybdb-dsql-tserver
+  template:
+    metadata:
+      labels:
+        app: ybdb-dsql-tserver
+    spec:
+      terminationGracePeriodSeconds: 300
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ybdb-dsql-tserver
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: ybdb-dsql-tserver
+          image: yugabytedb/yugabyte:2.14.7.0-b51
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "bash"
+                  - "-c"
+                  - >
+                    mkdir -p /mnt/disk0/cores;
+                    mkdir -p /mnt/disk0/yb-data/scripts;
+                    if [ ! -f /mnt/disk0/yb-data/scripts/log_cleanup.sh ]; then
+                      if [ -f /home/yugabyte/bin/log_cleanup.sh ]; then
+                        cp /home/yugabyte/bin/log_cleanup.sh /mnt/disk0/yb-data/scripts;
+                      fi;
+                    fi
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - touch "/mnt/disk0/disk.check"
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: YBDEVOPS_CORECOPY_DIR
+              value: "/mnt/disk0/cores"
+            - name: YSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ybdb-dsql-vault
+                  key: ysql-secret
+            - name: YCQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ybdb-dsql-vault
+                  key: ycql-secret
+          resources:
+            limits:
+              memory: 8Gi
+            requests:
+              cpu: 2
+              memory: 8Gi
+          workingDir: "/mnt/disk0/cores"
+          command:
+            - "/sbin/tini"
+            - "--"
+          args:
+            - "/bin/bash"
+            - "-c"
+            - |
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                /home/yugabyte/tools/k8s_preflight.py all
+              fi && \
+              touch "/mnt/disk0/disk.check" && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local" \
+                  --port="9100"
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local:9100" \
+                  --port="9100"
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="0.0.0.0" \
+                  --port="9000"
+              fi && \
+              if [[ -f /home/yugabyte/tools/k8s_parent.py ]]; then
+                k8s_parent="/home/yugabyte/tools/k8s_parent.py"
+              else
+                k8s_parent=""
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local" \
+                  --port="9042"
+              fi && \
+              if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then
+                PYTHONUNBUFFERED="true" /home/yugabyte/tools/k8s_preflight.py \
+                  dnscheck \
+                  --addr="0.0.0.0:5433" \
+                  --port="5433"
+              fi && \
+              exec ${k8s_parent} /home/yugabyte/bin/yb-tserver \
+                --fs_data_dirs=/mnt/disk0 \
+                --tserver_master_addrs=ybdb-dsql-master-0.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100,ybdb-dsql-master-1.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100,ybdb-dsql-master-2.ybdb-dsql-masters.$(NAMESPACE).svc.cluster.local:7100 \
+                --metric_node_name=$(HOSTNAME) \
+                --memory_limit_hard_bytes=7298088960 \
+                --stderrthreshold=0 \
+                --num_cpus=2 \
+                --undefok=num_cpus,enable_ysql \
+                --use_node_hostname_for_local_tserver=true \
+                --rpc_bind_addresses=$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local \
+                --server_broadcast_addresses=$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local:9100 \
+                --webserver_interface=0.0.0.0 \
+                --enable_ysql=true \
+                --pgsql_proxy_bind_address=0.0.0.0:5433 \
+                --cql_proxy_bind_address=$(HOSTNAME).ybdb-dsql-tservers.$(NAMESPACE).svc.cluster.local \
+                --ysql_enable_auth=true \
+                --use_cassandra_authentication=true
+          ports:
+            - containerPort: 9000
+              name: "http-ui"
+            - containerPort: 9100
+              name: "tcp-rpc-port"
+            - containerPort: 13000
+              name: "http-ysql-met"
+            - containerPort: 5433
+              name: "tcp-ysql-port"
+            - containerPort: 12000
+              name: "http-ycql-met"
+            - containerPort: 9042
+              name: "tcp-ycql-port"
+          volumeMounts:
+            - name: ybdb-dsql-tserver
+              mountPath: /mnt/disk0
+        - name: ybdb-dsql-yb-cleanup
+          image: yugabytedb/yugabyte:2.14.7.0-b51
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: USER
+              value: "yugabyte"
+          command:
+            - "/sbin/tini"
+            - "--"
+          args:
+            - "/bin/bash"
+            - "-c"
+            - >
+              while true; do
+                sleep 3600;
+                /home/yugabyte/scripts/log_cleanup.sh;
+              done
+          volumeMounts:
+            - name: ybdb-dsql-tserver
+              mountPath: /home/yugabyte/
+              subPath: yb-data
+            - name: ybdb-dsql-tserver
+              mountPath: /var/yugabyte/cores
+              subPath: cores

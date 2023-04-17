@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: store
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: store
+      version: "v1"
+  template:
+    metadata:
+      labels:
+        app: store
+        version: "v1"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - store
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      initContainers:
+        - name: init-ds
+          image: praqma/network-multitool:alpine-extra
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              dbRef=""
+              port=9042
+              port=5433
+
+                dbRef=ybdb-dsql
+
+              while true
+              do
+                rt=$(echo 'exit' | curl -s telnet://${dbRef}-yql:$port)
+                if [ $? -eq 0 ]; then
+                  echo "DB is UP; checking the object(s) status"
+                  rt=$(curl -s ${dbRef}-tserver-ui:9000/metrics | jq '.[] | select(.type == "server") | .metrics[] | select(.name=="proxy_response_bytes_yb_master_MasterDdl_IsCreateNamespaceDone") | .value')
+                  if [ $rt -gt 1 ]; then
+                    echo "DB is initialized"
+                    break
+                  fi
+                fi
+                echo "DB is not yet reachable; wait for a few secs before retry"
+                sleep 10
+              done
+      containers:
+        - name: store-app
+          image: humourmind/store
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: prod
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://admin:${jhipster.registry.password}@jhipster-registry.default.svc.cluster.local:8761/config
+            - name: JHIPSTER_REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: registry-secret
+                  key: registry-admin-password
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: http://admin:${jhipster.registry.password}@jhipster-registry.default.svc.cluster.local:8761/eureka/
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/store
+            #        - name: SPRING_LIQUIBASE_URL
+            #          value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/store
+            - name: SPRING_DATASOURCE_USERNAME
+              value: store
+            - name: SPRING_R2DBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: store-vault
+                  key: yql-secret
+            - name: SPRING_R2DBC_URL
+              value: r2dbc:postgresql://ybdb-dsql-yql.default.svc.cluster.local:5433/store
+            - name: SPRING_LIQUIBASE_URL
+              value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/store
+            - name: SPRING_SLEUTH_PROPAGATION_KEYS
+              value: "x-request-id,x-ot-span-context"
+            - name: JAVA_OPTS
+              value: " -Xmx256m -Xms256m"
+            - name: SERVER_SHUTDOWN
+              value: graceful
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /management/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /management/health/liveness
+              port: http
+            initialDelaySeconds: 120
