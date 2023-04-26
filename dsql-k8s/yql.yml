@@ -180,7 +180,7 @@ spec:
       spec:
         accessModes:
           - "ReadWriteOnce"
-        storageClassName:
+        storageClassName: "powerstore-topology"
         resources:
           requests:
             storage: 50Gi
@@ -356,7 +356,7 @@ spec:
       spec:
         accessModes:
           - "ReadWriteOnce"
-        storageClassName:
+        storageClassName: "powerstore-topology"
         resources:
           requests:
             storage: 50Gi
