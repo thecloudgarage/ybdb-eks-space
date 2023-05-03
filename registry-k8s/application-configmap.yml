@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: application-config
-  namespace: default
+  namespace: yugabyte
 #common configuration shared between all applications
 data:
   application.yml: |-
