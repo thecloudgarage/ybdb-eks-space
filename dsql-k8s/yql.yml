@@ -2,7 +2,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: ybdb-dsql-master
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-master
 spec:
@@ -15,7 +15,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: ybdb-dsql-tserver
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-tserver
 spec:
@@ -28,7 +28,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ybdb-dsql-masters
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-master
     service-type: "headless"
@@ -44,7 +44,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ybdb-dsql-master-ui
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-master
 spec:
@@ -59,7 +59,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ybdb-dsql-tservers
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-tserver
     service-type: "headless"
@@ -75,7 +75,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ybdb-dsql-yql
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-tserver
 spec:
@@ -96,7 +96,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ybdb-dsql-tserver-ui
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-tserver
 spec:
@@ -111,7 +111,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: ybdb-dsql-vault
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-vault
 type: Opaque
@@ -123,7 +123,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: invoice-vault
-  namespace: default
+  namespace: yugabyte
   labels:
     app: invoice-vault
 type: Opaque
@@ -134,7 +134,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: notification-vault
-  namespace: default
+  namespace: yugabyte
   labels:
     app: notification-vault
 type: Opaque
@@ -145,7 +145,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: product-vault
-  namespace: default
+  namespace: yugabyte
   labels:
     app: product-vault
 type: Opaque
@@ -156,7 +156,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: store-vault
-  namespace: default
+  namespace: yugabyte
   labels:
     app: store-vault
 type: Opaque
@@ -167,7 +167,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: ybdb-dsql-master
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-master
 spec:
@@ -178,6 +178,8 @@ spec:
     - metadata:
         name: ybdb-dsql-master
       spec:
+        nodeSelector:
+          group: md-2
         accessModes:
           - "ReadWriteOnce"
         storageClassName: "powerstore-topology"
@@ -343,7 +345,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: ybdb-dsql-tserver
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-tserver
 spec:
@@ -354,6 +356,8 @@ spec:
     - metadata:
         name: ybdb-dsql-tserver
       spec:
+        nodeSelector:
+          group: md-2
         accessModes:
           - "ReadWriteOnce"
         storageClassName: "powerstore-topology"
