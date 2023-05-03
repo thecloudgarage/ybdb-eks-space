@@ -16,7 +16,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: registry-secret
-  namespace: default
+  namespace: yugabyte
 type: Opaque
 data:
   registry-admin-password: YWRtaW4= # base64 encoded "admin"
@@ -41,7 +41,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: jhipster-registry
-  namespace: default
+  namespace: yugabyte
 spec:
   # added to circumvent kustomize bug
   volumeClaimTemplates: []
@@ -57,6 +57,8 @@ spec:
         app: jhipster-registry
         version: "1.0"
     spec:
+      nodeSelector:
+        group: md-1
       terminationGracePeriodSeconds: 10
       containers:
         - name: jhipster-registry
