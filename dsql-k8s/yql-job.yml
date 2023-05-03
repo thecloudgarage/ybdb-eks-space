@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ybdb-dsql-cm
-  namespace: default
+  namespace: yugabyte
 data:
   ysql-init-db.sql: |
     CREATE DATABASE invoice\;
@@ -24,7 +24,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: ybdb-dsql-job
-  namespace: default
+  namespace: yugabyte
   labels:
     app: ybdb-dsql-job
 spec:
