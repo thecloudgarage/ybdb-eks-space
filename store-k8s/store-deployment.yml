@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: store
-  namespace: default
+  namespace: yugabyte
 spec:
   replicas: 1
   selector:
@@ -15,6 +15,8 @@ spec:
         app: store
         version: "v1"
     spec:
+      nodeSelector:
+        group: md-1
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
