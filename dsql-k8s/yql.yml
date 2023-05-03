@@ -178,8 +178,6 @@ spec:
     - metadata:
         name: ybdb-dsql-master
       spec:
-        nodeSelector:
-          group: md-2
         accessModes:
           - "ReadWriteOnce"
         storageClassName: "powerstore-topology"
@@ -198,6 +196,8 @@ spec:
       labels:
         app: ybdb-dsql-master
     spec:
+      nodeSelector:
+        group: md-2
       terminationGracePeriodSeconds: 300
       affinity:
         podAntiAffinity:
@@ -356,8 +356,6 @@ spec:
     - metadata:
         name: ybdb-dsql-tserver
       spec:
-        nodeSelector:
-          group: md-2
         accessModes:
           - "ReadWriteOnce"
         storageClassName: "powerstore-topology"
@@ -376,6 +374,8 @@ spec:
       labels:
         app: ybdb-dsql-tserver
     spec:
+      nodeSelector:
+        group: md-2
       terminationGracePeriodSeconds: 300
       affinity:
         podAntiAffinity:
