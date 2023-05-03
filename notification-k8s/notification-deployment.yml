@@ -63,18 +63,18 @@ spec:
             - name: SPRING_PROFILES_ACTIVE
               value: prod
             - name: SPRING_CLOUD_CONFIG_URI
-              value: http://admin:${jhipster.registry.password}@jhipster-registry.default.svc.cluster.local:8761/config
+              value: http://admin:${jhipster.registry.password}@jhipster-registry.yugabyte.svc.cluster.local:8761/config
             - name: JHIPSTER_REGISTRY_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: registry-secret
                   key: registry-admin-password
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-              value: http://admin:${jhipster.registry.password}@jhipster-registry.default.svc.cluster.local:8761/eureka/
+              value: http://admin:${jhipster.registry.password}@jhipster-registry.yugabyte.svc.cluster.local:8761/eureka/
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/notification
+              value: jdbc:yugabytedb://ybdb-dsql-yql.yugabyte.svc.cluster.local:5433/notification
             #        - name: SPRING_LIQUIBASE_URL
-            #          value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/notification
+            #          value: jdbc:yugabytedb://ybdb-dsql-yql.yugabyte.svc.cluster.local:5433/notification
             - name: SPRING_DATASOURCE_USERNAME
               value: notification
             - name: SPRING_R2DBC_PASSWORD
@@ -83,9 +83,9 @@ spec:
                   name: notification-vault
                   key: yql-secret
             - name: SPRING_R2DBC_URL
-              value: r2dbc:postgresql://ybdb-dsql-yql.default.svc.cluster.local:5433/notification
+              value: r2dbc:postgresql://ybdb-dsql-yql.yugabyte.svc.cluster.local:5433/notification
             - name: SPRING_LIQUIBASE_URL
-              value: jdbc:yugabytedb://ybdb-dsql-yql.default.svc.cluster.local:5433/notification
+              value: jdbc:yugabytedb://ybdb-dsql-yql.yugabyte.svc.cluster.local:5433/notification
             - name: SPRING_SLEUTH_PROPAGATION_KEYS
               value: "x-request-id,x-ot-span-context"
             - name: JAVA_OPTS
