@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: invoice
-  namespace: default
+  namespace: yugabyte
   labels:
     app: invoice
 spec:
