@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+
+kind: Ingress
+
+metadata:
+
+  name: store-ingress
+  namespace: yugabyte
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+      - fqdnOfStore
+    secretName: store-tls
+  rules:
+    - host: fqdnOfStore
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: store
+                port:
+                  number: 8080
